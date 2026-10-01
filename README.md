@@ -41,7 +41,6 @@ PrusaSlicer.
 | `app.js`             | SVG serialization + UI wiring                         |
 | `index.template.html`| HTML/CSS template                                     |
 | `build.js`           | Bundles the above into `index.html`                   |
-| `_original/earcut.js`| Vendored [mapbox/earcut](https://github.com/mapbox/earcut) (ISC license) |
 
 ## Rebuild
 
