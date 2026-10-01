@@ -1,0 +1,1638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bahtinov Mask Generator</title>
+<meta name="description" content="Create Bahtinov and Tri-Bahtinov telescope focusing masks in 2D (SVG) or 3D (STL), entirely in the browser.">
+<style>
+  :root {
+    --bg: #0b0f14;
+    --panel: #111820;
+    --panel2: #151f2b;
+    --border: #22303f;
+    --text: #dbe4ee;
+    --muted: #8ba1b7;
+    --accent: #4fc3f7;
+    --accent2: #26c6a9;
+    --danger: #ff6b6b;
+    --radius: 10px;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.45;
+    min-height: 100vh;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 20px 20px 60px; }
+  header { margin-bottom: 20px; }
+  header h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); font-size: 14px; }
+
+  .layout { display: grid; grid-template-columns: 380px 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .panel h2 {
+    margin: 0 0 12px; font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--muted);
+  }
+
+  .group { margin-bottom: 14px; }
+  .group:last-child { margin-bottom: 0; }
+  .group label.field-label {
+    display: block; font-size: 13px; color: var(--muted); margin-bottom: 5px;
+  }
+  input[type="number"], input[type="text"], select {
+    width: 100%; padding: 8px 10px; background: var(--panel2);
+    border: 1px solid var(--border); border-radius: 7px; color: var(--text);
+    font-size: 14px; font-family: var(--mono);
+  }
+  input[type="number"]:focus, select:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+  select { font-family: var(--sans); }
+
+  .row { display: flex; gap: 12px; }
+  .row > * { flex: 1; }
+
+  .radio-row { display: flex; flex-direction: column; gap: 6px; }
+  .radio-row label {
+    display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer;
+    padding: 6px 8px; border-radius: 6px; border: 1px solid transparent;
+  }
+  .radio-row label:hover { background: var(--panel2); }
+  .radio-row label.checked { border-color: var(--border); background: var(--panel2); }
+  .radio-row input[type="radio"], .radio-row input[type="checkbox"] { accent-color: var(--accent); }
+  .hl { color: var(--accent2); font-family: var(--mono); }
+
+  .checkbox-row { display: flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; padding: 4px 0; }
+  .checkbox-row input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+  .range-row { display: flex; align-items: center; gap: 12px; }
+  .range-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+  .range-row .range-val { min-width: 46px; text-align: right; font-family: var(--mono); color: var(--accent2); }
+
+  .hidden { display: none !important; }
+
+  .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  .btn {
+    display: block; width: 100%; padding: 12px; margin-top: 16px;
+    background: linear-gradient(180deg, #28a8e0, #1d86b5);
+    color: #06121a; border: none; border-radius: 8px; font-size: 15px; font-weight: 700;
+    cursor: pointer; letter-spacing: 0.02em;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:active { transform: translateY(1px); }
+
+  details.advanced { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
+  details.advanced summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  details.advanced .inner { margin-top: 10px; }
+
+  #preview {
+    position: sticky; top: 20px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  #preview svg {
+    width: 100%; height: auto; aspect-ratio: 1 / 1;
+    background:
+      radial-gradient(circle at 50% 50%, #16212e 0 49.5%, #0e141b 50%);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    max-width: 100%;
+  }
+  #viewer3D { width: 100%; }
+  #viewerCanvas {
+    width: 100%; height: auto; aspect-ratio: 1 / 1;
+    display: block; border: 1px solid var(--border); border-radius: var(--radius);
+    background: #0e141b;
+  }
+  .stats { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; justify-content: center; }
+  .stat { text-align: center; }
+  .stat .v { font-family: var(--mono); color: var(--accent2); font-size: 15px; }
+  .stat .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+  footer { margin-top: 24px; color: var(--muted); font-size: 12px; text-align: center; }
+  .err { color: var(--danger); font-size: 13px; min-height: 18px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Bahtinov Mask Generator</h1>
+    <p>Bahtinov &amp; Tri-Bahtinov focusing masks — 2D (SVG) or 3D (STL), computed entirely in your browser.</p>
+  </header>
+
+  <div class="layout">
+    <div class="panel" id="controls">
+      <h2>Configuration</h2>
+
+      <div class="group">
+        <label class="field-label" for="maskType">Mask type</label>
+        <select id="maskType">
+          <option value="Bahtinov">Bahtinov — for focussing</option>
+          <option value="Tri-Bahtinov V2">Tri-Bahtinov V2 — focussing + collimation</option>
+        </select>
+      </div>
+
+      <div class="group">
+        <label class="field-label" for="outputType">Output</label>
+        <select id="outputType">
+          <option value="2D">2D (SVG)</option>
+          <option value="3D">3D (STL)</option>
+        </select>
+      </div>
+
+      <div class="group">
+        <label class="field-label" for="apertureType">Aperture type</label>
+        <select id="apertureType">
+          <option value="0">Fully open aperture</option>
+          <option value="1">Stopped aperture</option>
+        </select>
+        <div class="group hidden" id="apertureStopRow" style="margin-top:8px;">
+          <label class="field-label" for="inApertureStop">Aperture stop (fraction)</label>
+          <input type="number" id="inApertureStop" value="1" step="0.01" min="0.01" max="1">
+        </div>
+      </div>
+
+      <div class="group">
+        <label class="field-label" for="inM">[M] Mask diameter (mm)</label>
+        <input type="number" id="inM" value="100" step="0.1" min="1">
+      </div>
+
+      <div class="group">
+        <label class="field-label" for="inR">[R] Rim width (mm)</label>
+        <input type="number" id="inR" value="10" step="0.1" min="0">
+      </div>
+
+      <div class="group">
+        <label class="field-label">[A] Aperture (mm)</label>
+        <div class="radio-row">
+          <label id="apAuto"><input type="radio" name="apertureMode" value="auto" checked>
+            <span><span class="hl" id="valAutoAperture">80</span> = M − 2×R</span></label>
+          <label id="apCustom"><input type="radio" name="apertureMode" value="custom">
+            <span>Custom</span></label>
+        </div>
+        <div class="hidden" id="customAperture" style="margin-top:6px;">
+          <input type="number" id="inCustomAperture" value="80" step="0.1" min="0" placeholder="Aperture (mm)">
+        </div>
+      </div>
+
+      <div class="group">
+        <label class="field-label" for="inF">[F] Focal length (mm)</label>
+        <input type="number" id="inF" value="1200" step="1" min="0">
+        <div class="hint">Stopped aperture: <span class="hl" id="valStoppedAperture">80</span> mm</div>
+      </div>
+
+      <div class="group">
+        <label class="field-label">[S] Slit pitch (mm)</label>
+        <div class="radio-row">
+          <label><input type="radio" name="pitchMode" value="recommended" checked>
+            <span>Recommended = <span class="hl" id="valRecommendedPitch">3.11</span></span></label>
+          <label><input type="radio" name="pitchMode" value="3x">
+            <span>3 × recommended = <span class="hl" id="val3xPitch">9.33</span></span></label>
+          <label><input type="radio" name="pitchMode" value="custom">
+            <span>Custom</span></label>
+        </div>
+        <div class="hidden" id="customPitch" style="margin-top:6px;">
+          <input type="number" id="inCustomPitch" value="3.11" step="0.01" min="0" placeholder="Pitch (mm)">
+        </div>
+      </div>
+
+      <div class="group checkbox-row">
+        <label class="checkbox-row">
+          <input type="checkbox" id="inCentralObs">
+          <span>Central obstruction</span>
+        </label>
+        <div class="hidden" id="centralObsRow" style="margin-top:6px;">
+          <label class="field-label" for="inCentralObsDia">Obstruction diameter (mm)</label>
+          <input type="number" id="inCentralObsDia" value="30" step="0.1" min="0">
+        </div>
+      </div>
+
+      <div class="group">
+        <label class="field-label">Rounding</label>
+        <div class="range-row">
+          <input type="range" id="inRounding" min="0" max="1" step="0.01" value="0.3">
+          <span class="range-val" id="valRounding">30%</span>
+        </div>
+      </div>
+
+      <details class="advanced">
+        <summary>Advanced</summary>
+        <div class="inner">
+          <div class="group">
+            <label class="field-label" for="inSlitRatio">Slit ratio (bar / pitch)</label>
+            <input type="number" id="inSlitRatio" value="0.5" step="0.01" min="0.1" max="0.9">
+            <div class="hint">0.5 = equal bars and gaps (recommended).</div>
+          </div>
+          <div class="group">
+            <label class="field-label" for="inPartition">Partition multiplier</label>
+            <input type="number" id="inPartition" value="1" step="0.1" min="0">
+            <div class="hint">Thickness of the solid partition between sections.</div>
+          </div>
+        </div>
+      </details>
+
+      <div class="hidden" id="settings3D">
+        <div class="group" style="margin-top:12px;">
+          <label class="field-label" for="inHeight">Mask thickness (mm)</label>
+          <input type="number" id="inHeight" value="5" step="0.5" min="0.5">
+        </div>
+        <label class="checkbox-row">
+          <input type="checkbox" id="inFlange" checked>
+          <span>Flange (collar)</span>
+        </label>
+        <div id="flangeRows">
+          <div class="row">
+            <div class="group">
+              <label class="field-label" for="inFlangeHeight">Flange height (mm)</label>
+              <input type="number" id="inFlangeHeight" value="2" step="0.5" min="0.5">
+            </div>
+            <div class="group">
+              <label class="field-label" for="inFlangeWidth">Flange width (mm)</label>
+              <input type="number" id="inFlangeWidth" value="4" step="0.5" min="0.5">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn" id="btnDownload">Download SVG</button>
+      <div class="err" id="errMsg"></div>
+    </div>
+
+    <div class="panel" id="preview">
+      <h2>Preview</h2>
+      <svg id="previewSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="hidden" id="viewer3D">
+        <canvas id="viewerCanvas"></canvas>
+        <div class="hint" style="text-align:center; margin-top:8px;">Drag to rotate · scroll to zoom</div>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="v" id="statHoles">0</div><div class="k">slits</div></div>
+        <div class="stat"><div class="v" id="statPitch">0 mm</div><div class="k">pitch</div></div>
+        <div class="stat"><div class="v" id="statAperture">0 mm</div><div class="k">aperture</div></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Runs fully client-side — no server, no upload. SVG scales for cutting; STL is manifold for 3D printing.
+  </footer>
+</div>
+
+<script>
+// geometry.js — 2D polygon geometry core for the Bahtinov mask generator.
+// Y-up math coordinates (origin at mask center), CCW = positive area.
+// No external dependencies. CommonJS export for node testing.
+
+'use strict';
+
+const TAU = Math.PI * 2;
+const EPS = 1e-9;
+
+function rad(d) { return d * Math.PI / 180; }
+function deg(r) { return r * 180 / Math.PI; }
+
+// ---------- polygon helpers ----------
+
+function polyArea(pts) {
+  let a = 0;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    a += pts[j][0] * pts[i][1] - pts[i][0] * pts[j][1];
+  }
+  return a / 2;
+}
+
+function isCCW(pts) { return polyArea(pts) > 0; }
+function reversePts(pts) { return pts.slice().reverse(); }
+function ensureCCW(pts) { return isCCW(pts) ? pts : reversePts(pts); }
+function ensureCW(pts) { return isCCW(pts) ? reversePts(pts) : pts; }
+
+function translate(pts, dx, dy) { return pts.map(p => [p[0] + dx, p[1] + dy]); }
+
+// Rotate points around (cx,cy) [default origin] by `angle` radians (CCW).
+function rotatePts(pts, angle, cx = 0, cy = 0) {
+  const c = Math.cos(angle), s = Math.sin(angle);
+  return pts.map(p => {
+    const x = p[0] - cx, y = p[1] - cy;
+    return [cx + x * c - y * s, cy + x * s + y * c];
+  });
+}
+
+// Full circle (CCW) or pie-slice sector (start/end in radians; sector includes center).
+function circlePoly(cx, cy, r, n = 180, start = 0, end = TAU) {
+  const sweep = end - start;
+  const steps = Math.max(3, Math.round(n * sweep / TAU));
+  const pts = [];
+  if (Math.abs(sweep - TAU) < EPS) {
+    for (let i = 0; i < steps; i++) {
+      const a = start + sweep * i / steps;
+      pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+    }
+  } else {
+    pts.push([cx, cy]);
+    for (let i = 0; i <= steps; i++) {
+      const a = start + sweep * i / steps;
+      pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+    }
+  }
+  return pts;
+}
+
+// Rectangle centered at (cx,cy), width w, height h, rotated by angle around center.
+function rectPoly(cx, cy, w, h, angle = 0) {
+  const hw = w / 2, hh = h / 2;
+  let pts = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]];
+  if (angle) pts = rotatePts(pts, angle);
+  return translate(pts, cx, cy);
+}
+
+// ---------- Sutherland–Hodgman (subject clipped to CONVEX CCW clip polygon) ----------
+
+function clipConvex(subject, clip) {
+  let output = subject.slice();
+  const n = clip.length;
+  for (let i = 0; i < n; i++) {
+    const a = clip[i], b = clip[(i + 1) % n];
+    const ex = b[0] - a[0], ey = b[1] - a[1];
+    const input = output;
+    output = [];
+    if (input.length === 0) break;
+    const inside = p => ex * (p[1] - a[1]) - ey * (p[0] - a[0]) >= -EPS;
+    const isect = (p1, p2) => {
+      const dx = p2[0] - p1[0], dy = p2[1] - p1[1];
+      const denom = ex * dy - ey * dx;
+      if (Math.abs(denom) < EPS) return p2;
+      const t = (ex * (a[1] - p1[1]) - ey * (a[0] - p1[0])) / denom;
+      return [p1[0] + dx * t, p1[1] + dy * t];
+    };
+    let s = input[input.length - 1];
+    for (const p of input) {
+      if (inside(p)) {
+        if (!inside(s)) output.push(isect(s, p));
+        output.push(p);
+      } else if (inside(s)) {
+        output.push(isect(s, p));
+      }
+      s = p;
+    }
+  }
+  return output;
+}
+
+// ---------- Greiner–Hormann boolean ----------
+
+function segIntersection(a, b, c, d) {
+  const d1x = b[0] - a[0], d1y = b[1] - a[1];
+  const d2x = d[0] - c[0], d2y = d[1] - c[1];
+  const denom = d1x * d2y - d1y * d2x;
+  if (Math.abs(denom) < EPS) return null;
+  const t = ((c[0] - a[0]) * d2y - (c[1] - a[1]) * d2x) / denom;
+  const u = ((c[0] - a[0]) * d1y - (c[1] - a[1]) * d1x) / denom;
+  if (t > EPS && t < 1 - EPS && u > EPS && u < 1 - EPS) {
+    return { x: a[0] + d1x * t, y: a[1] + d1y * t, t, u };
+  }
+  return null;
+}
+
+// op: 'and' | 'or' | 'diff'. Returns array of result polygons.
+// For 'diff', a hole is returned as a CW polygon alongside the CCW outer.
+function boolOp(subject, clip, op) {
+  const clipW = clip;
+  const clipCCW = isCCW(clipW);
+  const startEntry = (op === 'and');
+  const clipForward = (op !== 'diff');
+  const nS = subject.length, nC = clipW.length;
+
+  const sI = [], cI = [];
+  for (let i = 0; i < nS; i++) {
+    const a = subject[i], b = subject[(i + 1) % nS];
+    const list = [];
+    for (let j = 0; j < nC; j++) {
+      const it = segIntersection(a, b, clipW[j], clipW[(j + 1) % nC]);
+      if (it) list.push(it);
+    }
+    list.sort((p, q) => p.t - q.t);
+    sI.push(list);
+  }
+  for (let j = 0; j < nC; j++) {
+    const c = clipW[j], d = clipW[(j + 1) % nC];
+    const list = [];
+    for (let i = 0; i < nS; i++) {
+      const it = segIntersection(subject[i], subject[(i + 1) % nS], c, d);
+      if (it) list.push(it);
+    }
+    list.sort((p, q) => p.u - q.u);
+    cI.push(list);
+  }
+  const totalInts = sI.reduce((s, l) => s + l.length, 0);
+
+  const S = [], C = [];
+  for (let i = 0; i < nS; i++) {
+    S.push({ x: subject[i][0], y: subject[i][1], int: false, entry: false, nei: null, vis: false, next: null, prev: null });
+    for (const it of sI[i]) S.push({ x: it.x, y: it.y, int: true, entry: false, nei: null, vis: false, next: null, prev: null });
+  }
+  for (let j = 0; j < nC; j++) {
+    C.push({ x: clipW[j][0], y: clipW[j][1], int: false, entry: false, nei: null, vis: false, next: null, prev: null });
+    for (const it of cI[j]) C.push({ x: it.x, y: it.y, int: true, entry: false, nei: null, vis: false, next: null, prev: null });
+  }
+  for (let k = 0; k < S.length; k++) { S[k].next = S[(k + 1) % S.length]; S[k].prev = S[(k - 1 + S.length) % S.length]; }
+  for (let k = 0; k < C.length; k++) { C[k].next = C[(k + 1) % C.length]; C[k].prev = C[(k - 1 + C.length) % C.length]; }
+
+  const sInts = S.filter(n => n.int), cInts = C.filter(n => n.int);
+  for (const sn of sInts) {
+    let best = null, bestD = 1e-5;
+    for (const cn of cInts) {
+      if (cn.nei) continue;
+      const dx = sn.x - cn.x, dy = sn.y - cn.y;
+      const d = dx * dx + dy * dy;
+      if (d < bestD) { bestD = d; best = cn; }
+    }
+    sn.nei = best;
+    if (best) best.nei = sn;
+  }
+  for (const sn of sInts) {
+    const cn = sn.nei; if (!cn) continue;
+    const cex = cn.next.x - cn.prev.x, cey = cn.next.y - cn.prev.y;
+    const sex = sn.next.x - sn.x, sey = sn.next.y - sn.y;
+    const cross = cex * sey - cey * sex;
+    sn.entry = clipCCW ? (cross > 0) : (cross < 0);
+    cn.entry = sn.entry;
+  }
+
+  function pointInPolygon(pt, poly) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1];
+      const it = ((yi > pt[1]) !== (yj > pt[1])) && (pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi);
+      if (it) inside = !inside;
+    }
+    return inside;
+  }
+
+  if (totalInts === 0) {
+    const sInC = pointInPolygon(subject[0], clipW);
+    const cInS = pointInPolygon(clipW[0], subject);
+    if (op === 'and') { if (sInC) return [subject]; if (cInS) return [clipW]; return []; }
+    if (op === 'or') { if (sInC) return [clipW]; if (cInS) return [subject]; return [subject, clipW]; }
+    if (sInC) return []; if (cInS) return [subject, reversePts(clipW)]; return [subject];
+  }
+
+  const maxIter = (S.length + C.length) * 8 + 50;
+  function trace(start) {
+    const poly = [];
+    let cur = start, onS = true, n = 0;
+    while (n++ < maxIter) {
+      poly.push([cur.x, cur.y]);
+      cur.vis = true;
+      let nx = onS ? cur.next : (clipForward ? cur.next : cur.prev);
+      if (nx.int) { cur = nx.nei; onS = !onS; }
+      else { cur = nx; }
+      if (cur === start) break;
+    }
+    return poly;
+  }
+
+  const results = [];
+  for (const sn of sInts) {
+    if (sn.entry === startEntry && !sn.vis) {
+      const p = trace(sn);
+      if (p.length >= 3 && Math.abs(polyArea(p)) > EPS) results.push(p);
+    }
+  }
+  return results;
+}
+
+function unionPolygons(a, b) { return boolOp(a, b, 'or'); }
+function subtractPolygons(a, b) { return boolOp(a, b, 'diff'); }
+function intersectPolygons(a, b) { return boolOp(a, b, 'and'); }
+
+// Union of a list of polygons into a set of disjoint polygons.
+// Uses bbox pruning + a "merged iff result is a single polygon" heuristic that is
+// exact for convex-ish shapes (the case we care about here).
+function bboxOf(pts) {
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const p of pts) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }
+  return [x0, x1, y0, y1];
+}
+function bboxOverlap(a, b) { return a[0] <= b[1] + EPS && b[0] <= a[1] + EPS && a[2] <= b[3] + EPS && b[2] <= a[3] + EPS; }
+
+function unionMany(polys) {
+  if (polys.length === 0) return [];
+  if (polys.length === 1) return [polys[0]];
+  const result = [polys[0]];
+  const boxes = [bboxOf(polys[0])];
+  for (let k = 1; k < polys.length; k++) {
+    const p = polys[k];
+    const pb = bboxOf(p);
+    let merged = false;
+    for (let i = 0; i < result.length; i++) {
+      if (!bboxOverlap(boxes[i], pb)) continue;
+      const r = boolOp(result[i], p, 'or');
+      if (r.length === 1) {
+        result.splice(i, 1, ...r);
+        boxes.splice(i, 1, ...r.map(bboxOf));
+        merged = true;
+        break;
+      }
+    }
+    if (!merged) { result.push(p); boxes.push(pb); }
+  }
+  return result;
+}
+
+// ---------- ear-clipping triangulation (polygon with holes, Eberly bridging) ----------
+
+function pointInTriangle(p, a, b, c) {
+  // Strict inside test (points on the boundary do NOT block an ear).
+  const d1 = (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]);
+  const d2 = (c[0] - b[0]) * (p[1] - b[1]) - (c[1] - b[1]) * (p[0] - b[0]);
+  const d3 = (a[0] - c[0]) * (p[1] - c[1]) - (a[1] - c[1]) * (p[0] - c[0]);
+  return (d1 > EPS && d2 > EPS && d3 > EPS) || (d1 < -EPS && d2 < -EPS && d3 < -EPS);
+}
+
+function _cross(ax, ay, bx, by) { return ax * by - ay * bx; }
+
+// polygons: [outer (any winding), hole1, hole2, ...]
+// returns { verts, tris } with tris as vertex-index triples into verts.
+function triangulatePolygonWithHoles(polygons) {
+  const outer = ensureCCW(polygons[0]).slice();
+  const holes = polygons.slice(1).map(h => ensureCW(h).slice());
+
+  const V = [];
+  let ring = [];
+  for (const p of outer) { V.push([p[0], p[1]]); ring.push(V.length - 1); }
+  const holesIdx = holes.map(h => { const idx = []; for (const p of h) { V.push([p[0], p[1]]); idx.push(V.length - 1); } return idx; });
+
+  // sort holes by rightmost-x descending
+  holesIdx.sort((a, b) => {
+    let am = -Infinity, bm = -Infinity;
+    for (const i of a) if (V[i][0] > am) am = V[i][0];
+    for (const i of b) if (V[i][0] > bm) bm = V[i][0];
+    return bm - am;
+  });
+
+  function isReflex(vIdx) {
+    const v = V[ring[vIdx]];
+    const a = V[ring[(vIdx - 1 + ring.length) % ring.length]];
+    const b = V[ring[(vIdx + 1) % ring.length]];
+    return _cross(v[0] - a[0], v[1] - a[1], b[0] - v[0], b[1] - v[1]) < -EPS;
+  }
+
+  for (const hole of holesIdx) {
+    let ri = 0;
+    for (let i = 1; i < hole.length; i++) if (V[hole[i]][0] > V[hole[ri]][0]) ri = i;
+    const M = V[hole[ri]];
+
+    // ray-cast right from M
+    let bestX = Infinity, bestEdge = -1;
+    for (let i = 0; i < ring.length; i++) {
+      const a = V[ring[i]], b = V[ring[(i + 1) % ring.length]];
+      if ((a[1] > M[1] && b[1] > M[1]) || (a[1] < M[1] && b[1] < M[1])) continue;
+      const dy = b[1] - a[1];
+      if (Math.abs(dy) < EPS) continue; // horizontal edge: skip (degenerate ray case)
+      const t = (M[1] - a[1]) / dy;
+      if (t < -EPS || t > 1 + EPS) continue;
+      const x = a[0] + t * (b[0] - a[0]);
+      if (x < M[0] - EPS) continue;
+      if (x < bestX) { bestX = x; bestEdge = i; }
+    }
+    if (bestEdge === -1) bestEdge = 0;
+    const I0 = ring[bestEdge], I1 = ring[(bestEdge + 1) % ring.length];
+    let bridgePos; // position in `ring` to connect the bridge to
+    if (Math.abs(V[I0][1] - M[1]) < EPS && Math.abs(V[I0][0] - bestX) < EPS) bridgePos = bestEdge;
+    else if (Math.abs(V[I1][1] - M[1]) < EPS && Math.abs(V[I1][0] - bestX) < EPS) bridgePos = (bestEdge + 1) % ring.length;
+    else {
+      let bestK = -1, bestDist = Infinity;
+      for (let k = 0; k < ring.length; k++) {
+        if (k === bestEdge || k === (bestEdge + 1) % ring.length) continue;
+        if (!isReflex(k)) continue;
+        const v = V[ring[k]];
+        if (pointInTriangle(v, M, V[I0], V[I1])) {
+          const d = (v[0] - M[0]) * (v[0] - M[0]) + (v[1] - M[1]) * (v[1] - M[1]);
+          if (d < bestDist) { bestDist = d; bestK = k; }
+        }
+      }
+      bridgePos = (bestK !== -1) ? bestK : (bestEdge + 1) % ring.length;
+    }
+    const ti = bridgePos;
+    const merged = [];
+    for (let i = 0; i <= ti; i++) merged.push(ring[i]);
+    for (let i = 0; i < hole.length; i++) merged.push(hole[(ri + i) % hole.length]);
+    merged.push(hole[ri]);
+    for (let i = ti; i < ring.length; i++) merged.push(ring[i]);
+    ring = merged;
+  }
+
+  // ear clip
+  const tris = [];
+  let cur = ring.slice();
+  let guard = 0;
+  while (cur.length > 3 && guard++ < 1000000) {
+    const L = cur.length;
+    let clipped = false;
+    for (let i = 0; i < L; i++) {
+      const i0 = cur[(i - 1 + L) % L], i1 = cur[i], i2 = cur[(i + 1) % L];
+      const a = V[i0], b = V[i1], c = V[i2];
+      const cc = _cross(b[0] - a[0], b[1] - a[1], c[0] - b[0], c[1] - b[1]);
+      if (cc <= EPS) continue;
+      let ear = true;
+      for (let j = 0; j < L; j++) {
+        if (j === (i - 1 + L) % L || j === i || j === (i + 1) % L) continue;
+        if (pointInTriangle(V[cur[j]], a, b, c)) { ear = false; break; }
+      }
+      if (ear) { tris.push([i0, i1, i2]); cur.splice(i, 1); clipped = true; break; }
+    }
+    if (!clipped) break;
+  }
+  if (cur.length === 3) tris.push([cur[0], cur[1], cur[2]]);
+
+  return { verts: V, tris };
+}
+
+// ---------- exports ----------
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    TAU, EPS, rad, deg, polyArea, isCCW, reversePts, ensureCCW, ensureCW,
+    translate, rotatePts, circlePoly, rectPoly, clipConvex, boolOp,
+    unionPolygons, subtractPolygons, intersectPolygons, unionMany,
+    triangulatePolygonWithHoles, pointInTriangle,
+  };
+}
+
+!function(e,t){"object"==typeof exports&&"undefined"!=typeof module?t(exports):"function"==typeof define&&define.amd?define(["exports"],t):t((e="undefined"!=typeof globalThis?globalThis:e||self).earcut={})}(this,(function(e){"use strict";function t(e,t,n,r,x){let i;if(x===k(e,t,n,r)>0)for(let x=t;x<n;x+=r)i=w(x/r|0,e[x],e[x+1],i);else for(let x=n-r;x>=t;x-=r)i=w(x/r|0,e[x],e[x+1],i);return i&&Z(i,i.next)&&(z(i),i=i.next),i}function n(e,t){if(!e)return e;t||(t=e);let n,r=e;do{if(n=!1,r.steiner||!Z(r,r.next)&&0!==a(r.prev,r,r.next))r=r.next;else{if(z(r),r=t=r.prev,r===r.next)break;n=!0}}while(n||r!==t);return t}function r(e,t,f,l,c,p,s){if(!e)return;!s&&p&&function(e,t,n,r){let x=e;do{0===x.z&&(x.z=y(x.x,x.y,t,n,r)),x.prevZ=x.prev,x.nextZ=x.next,x=x.next}while(x!==e);x.prevZ.nextZ=null,x.prevZ=null,function(e){let t,n=1;do{let r,x=e;e=null;let i=null;for(t=0;x;){t++;let o=x,u=0;for(let e=0;e<n&&(u++,o=o.nextZ,o);e++);let f=n;for(;u>0||f>0&&o;)0!==u&&(0===f||!o||x.z<=o.z)?(r=x,x=x.nextZ,u--):(r=o,o=o.nextZ,f--),i?i.nextZ=r:e=r,r.prevZ=i,i=r;x=o}i.nextZ=null,n*=2}while(t>1)}(x)}(e,l,c,p);let v=e;for(;e.prev!==e.next;){const y=e.prev,h=e.next;if(p?i(e,l,c,p):x(e))t.push(y.i,e.i,h.i),z(e),e=h.next,v=h.next;else if((e=h)===v){s?1===s?r(e=o(n(e),t),t,f,l,c,p,2):2===s&&u(e,t,f,l,c,p):r(n(e),t,f,l,c,p,1);break}}}function x(e){const t=e.prev,n=e,r=e.next;if(a(t,n,r)>=0)return!1;const x=t.x,i=n.x,o=r.x,u=t.y,f=n.y,l=r.y,c=Math.min(x,i,o),y=Math.min(u,f,l),p=Math.max(x,i,o),s=Math.max(u,f,l);let h=r.next;for(;h!==t;){if(h.x>=c&&h.x<=p&&h.y>=y&&h.y<=s&&v(x,u,i,f,o,l,h.x,h.y)&&a(h.prev,h,h.next)>=0)return!1;h=h.next}return!0}function i(e,t,n,r){const x=e.prev,i=e,o=e.next;if(a(x,i,o)>=0)return!1;const u=x.x,f=i.x,l=o.x,c=x.y,p=i.y,s=o.y,h=Math.min(u,f,l),Z=Math.min(c,p,s),d=Math.max(u,f,l),M=Math.max(c,p,s),m=y(h,Z,t,n,r),g=y(d,M,t,n,r);let b=e.prevZ,w=e.nextZ;for(;b&&b.z>=m&&w&&w.z<=g;){if(b.x>=h&&b.x<=d&&b.y>=Z&&b.y<=M&&b!==x&&b!==o&&v(u,c,f,p,l,s,b.x,b.y)&&a(b.prev,b,b.next)>=0)return!1;if(b=b.prevZ,w.x>=h&&w.x<=d&&w.y>=Z&&w.y<=M&&w!==x&&w!==o&&v(u,c,f,p,l,s,w.x,w.y)&&a(w.prev,w,w.next)>=0)return!1;w=w.nextZ}for(;b&&b.z>=m;){if(b.x>=h&&b.x<=d&&b.y>=Z&&b.y<=M&&b!==x&&b!==o&&v(u,c,f,p,l,s,b.x,b.y)&&a(b.prev,b,b.next)>=0)return!1;b=b.prevZ}for(;w&&w.z<=g;){if(w.x>=h&&w.x<=d&&w.y>=Z&&w.y<=M&&w!==x&&w!==o&&v(u,c,f,p,l,s,w.x,w.y)&&a(w.prev,w,w.next)>=0)return!1;w=w.nextZ}return!0}function o(e,t){let r=e;do{const n=r.prev,x=r.next.next;!Z(n,x)&&d(n,r,r.next,x)&&g(n,x)&&g(x,n)&&(t.push(n.i,r.i,x.i),z(r),z(r.next),r=e=x),r=r.next}while(r!==e);return n(r)}function u(e,t,x,i,o,u){let f=e;do{let e=f.next.next;for(;e!==f.prev;){if(f.i!==e.i&&h(f,e)){let l=b(f,e);return f=n(f,f.next),l=n(l,l.next),r(f,t,x,i,o,u,0),void r(l,t,x,i,o,u,0)}e=e.next}f=f.next}while(f!==e)}function f(e,t){let n=e.x-t.x;if(0===n&&(n=e.y-t.y,0===n)){n=(e.next.y-e.y)/(e.next.x-e.x)-(t.next.y-t.y)/(t.next.x-t.x)}return n}function l(e,t){const r=function(e,t){let n=t;const r=e.x,x=e.y;let i,o=-1/0;if(Z(e,n))return n;do{if(Z(e,n.next))return n.next;if(x<=n.y&&x>=n.next.y&&n.next.y!==n.y){const e=n.x+(x-n.y)*(n.next.x-n.x)/(n.next.y-n.y);if(e<=r&&e>o&&(o=e,i=n.x<n.next.x?n:n.next,e===r))return i}n=n.next}while(n!==t);if(!i)return null;const u=i,f=i.x,l=i.y;let y=1/0;n=i;do{if(r>=n.x&&n.x>=f&&r!==n.x&&s(x<l?r:o,x,f,l,x<l?o:r,x,n.x,n.y)){const t=Math.abs(x-n.y)/(r-n.x);g(n,e)&&(t<y||t===y&&(n.x>i.x||n.x===i.x&&c(i,n)))&&(i=n,y=t)}n=n.next}while(n!==u);return i}(e,t);if(!r)return t;const x=b(r,e);return n(x,x.next),n(r,r.next)}function c(e,t){return a(e.prev,e,t.prev)<0&&a(t.next,e,e.next)<0}function y(e,t,n,r,x){return(e=1431655765&((e=858993459&((e=252645135&((e=16711935&((e=(e-n)*x|0)|e<<8))|e<<4))|e<<2))|e<<1))|(t=1431655765&((t=858993459&((t=252645135&((t=16711935&((t=(t-r)*x|0)|t<<8))|t<<4))|t<<2))|t<<1))<<1}function p(e){let t=e,n=e;do{(t.x<n.x||t.x===n.x&&t.y<n.y)&&(n=t),t=t.next}while(t!==e);return n}function s(e,t,n,r,x,i,o,u){return(x-o)*(t-u)>=(e-o)*(i-u)&&(e-o)*(r-u)>=(n-o)*(t-u)&&(n-o)*(i-u)>=(x-o)*(r-u)}function v(e,t,n,r,x,i,o,u){return!(e===o&&t===u)&&s(e,t,n,r,x,i,o,u)}function h(e,t){return e.next.i!==t.i&&e.prev.i!==t.i&&!function(e,t){let n=e;do{if(n.i!==e.i&&n.next.i!==e.i&&n.i!==t.i&&n.next.i!==t.i&&d(n,n.next,e,t))return!0;n=n.next}while(n!==e);return!1}(e,t)&&(g(e,t)&&g(t,e)&&function(e,t){let n=e,r=!1;const x=(e.x+t.x)/2,i=(e.y+t.y)/2;do{n.y>i!=n.next.y>i&&n.next.y!==n.y&&x<(n.next.x-n.x)*(i-n.y)/(n.next.y-n.y)+n.x&&(r=!r),n=n.next}while(n!==e);return r}(e,t)&&(a(e.prev,e,t.prev)||a(e,t.prev,t))||Z(e,t)&&a(e.prev,e,e.next)>0&&a(t.prev,t,t.next)>0)}function a(e,t,n){return(t.y-e.y)*(n.x-t.x)-(t.x-e.x)*(n.y-t.y)}function Z(e,t){return e.x===t.x&&e.y===t.y}function d(e,t,n,r){const x=m(a(e,t,n)),i=m(a(e,t,r)),o=m(a(n,r,e)),u=m(a(n,r,t));return x!==i&&o!==u||(!(0!==x||!M(e,n,t))||(!(0!==i||!M(e,r,t))||(!(0!==o||!M(n,e,r))||!(0!==u||!M(n,t,r)))))}function M(e,t,n){return t.x<=Math.max(e.x,n.x)&&t.x>=Math.min(e.x,n.x)&&t.y<=Math.max(e.y,n.y)&&t.y>=Math.min(e.y,n.y)}function m(e){return e>0?1:e<0?-1:0}function g(e,t){return a(e.prev,e,e.next)<0?a(e,t,e.next)>=0&&a(e,e.prev,t)>=0:a(e,t,e.prev)<0||a(e,e.next,t)<0}function b(e,t){const n=j(e.i,e.x,e.y),r=j(t.i,t.x,t.y),x=e.next,i=t.prev;return e.next=t,t.prev=e,n.next=x,x.prev=n,r.next=n,n.prev=r,i.next=r,r.prev=i,r}function w(e,t,n,r){const x=j(e,t,n);return r?(x.next=r.next,x.prev=r,r.next.prev=x,r.next=x):(x.prev=x,x.next=x),x}function z(e){e.next.prev=e.prev,e.prev.next=e.next,e.prevZ&&(e.prevZ.nextZ=e.nextZ),e.nextZ&&(e.nextZ.prevZ=e.prevZ)}function j(e,t,n){return{i:e,x:t,y:n,prev:null,next:null,z:0,prevZ:null,nextZ:null,steiner:!1}}function k(e,t,n,r){let x=0;for(let i=t,o=n-r;i<n;i+=r)x+=(e[o]-e[i])*(e[i+1]+e[o+1]),o=i;return x}e.default=function(e,n,x=2){const i=n&&n.length,o=i?n[0]*x:e.length;let u=t(e,0,o,x,!0);const c=[];if(!u||u.next===u.prev)return c;let y,s,v;if(i&&(u=function(e,n,r,x){const i=[];for(let r=0,o=n.length;r<o;r++){const u=t(e,n[r]*x,r<o-1?n[r+1]*x:e.length,x,!1);u===u.next&&(u.steiner=!0),i.push(p(u))}i.sort(f);for(let e=0;e<i.length;e++)r=l(i[e],r);return r}(e,n,u,x)),e.length>80*x){y=1/0,s=1/0;let t=-1/0,n=-1/0;for(let r=x;r<o;r+=x){const x=e[r],i=e[r+1];x<y&&(y=x),i<s&&(s=i),x>t&&(t=x),i>n&&(n=i)}v=Math.max(t-y,n-s),v=0!==v?32767/v:0}return r(u,c,x,y,s,v,0),c},e.deviation=function(e,t,n,r){const x=t&&t.length,i=x?t[0]*n:e.length;let o=Math.abs(k(e,0,i,n));if(x)for(let r=0,x=t.length;r<x;r++){const i=t[r]*n,u=r<x-1?t[r+1]*n:e.length;o-=Math.abs(k(e,i,u,n))}let u=0;for(let t=0;t<r.length;t+=3){const x=r[t]*n,i=r[t+1]*n,o=r[t+2]*n;u+=Math.abs((e[x]-e[o])*(e[i+1]-e[x+1])-(e[x]-e[i])*(e[o+1]-e[x+1]))}return 0===o&&0===u?0:Math.abs((u-o)/o)},e.flatten=function(e){const t=[],n=[],r=e[0][0].length;let x=0,i=0;for(const o of e){for(const e of o)for(let n=0;n<r;n++)t.push(e[n]);i&&(x+=i,n.push(x)),i=o.length}return{vertices:t,holes:n,dimensions:r}},Object.defineProperty(e,"__esModule",{value:!0})}));
+
+
+// browser namespace expected by mask.js / stl.js
+const geometry = { TAU, EPS, rad, deg, polyArea, isCCW, reversePts, ensureCCW, ensureCW, translate, rotatePts, circlePoly, rectPoly, clipConvex, boolOp, unionPolygons, subtractPolygons, intersectPolygons, unionMany, triangulatePolygonWithHoles, pointInTriangle };
+
+// mask.js — Bahtinov / Tri-Bahtinov mask geometry, faithful port of SkEye's algorithm.
+// Works in Y-up math coordinates (origin at mask center). Uses geometry.js.
+
+'use strict';
+
+
+// ---------- configuration / derived parameters ----------
+
+function computeParams(inp) {
+  const M = inp.diameterMM;
+  const R = inp.rimWidthMM;
+  const autoAperture = Math.max(0, M - 2 * R);
+  const effectiveAperture = inp.useAutoAperture ? autoAperture : ((inp.specifiedAperture != null) ? inp.specifiedAperture : autoAperture);
+  const stoppedAperture = (inp.apertureType === 0) ? effectiveAperture : effectiveAperture * (inp.apertureStopRatio || 1);
+  const focal = inp.focalLengthMM;
+
+  let recommendedRatio = 0;
+  if (effectiveAperture > 0) recommendedRatio = 25.7 * (focal / stoppedAperture);
+
+  let recommendedPitch = 0;
+  if (recommendedRatio > 0) {
+    const g = focal / recommendedRatio;       // = stoppedAperture / 25.7
+    recommendedPitch = Math.round(g * 100) / 100;
+    if (g < 1) recommendedPitch *= 3;
+  }
+
+  let pitch;
+  if (inp.slitPitchMode === 'recommended') pitch = recommendedPitch;
+  else if (inp.slitPitchMode === '3x') pitch = 3 * recommendedPitch;
+  else pitch = (inp.slitPitchCustom != null) ? inp.slitPitchCustom : recommendedPitch;
+  pitch = Math.max(0, pitch);
+
+  return {
+    maskDiameter: M,
+    maskRadius: M / 2,
+    aperture: effectiveAperture,
+    apertureRadius: effectiveAperture / 2,
+    stoppedAperture,
+    recommendedRatio,
+    recommendedPitch,
+    pitch,
+    slitRatio: inp.slitRatio,
+    partitionMultiplier: inp.partitionMultiplier,
+    centralObs: inp.centralObs,
+    centralObsDia: inp.centralObsDiaMM,
+    rounding: inp.rounding,
+    maskType: inp.maskType,
+  };
+}
+
+// ---------- rounded rectangle (for slit corner rounding) ----------
+
+function roundedRectPoly(cx, cy, w, h, r, angle = 0, segments = 6) {
+  const hw = w / 2, hh = h / 2;
+  const cr = Math.min(r, hw, hh);
+  const pts = [];
+  if (cr <= 1e-6) {
+    pts.push([-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]);
+  } else {
+    const ax = hw - cr, ay = hh - cr;
+    const corners = [
+      [ax, -ay, -Math.PI / 2, 0],          // bottom-right
+      [ax, ay, 0, Math.PI / 2],            // top-right
+      [-ax, ay, Math.PI / 2, Math.PI],     // top-left
+      [-ax, -ay, Math.PI, 3 * Math.PI / 2] // bottom-left
+    ];
+    for (const [cx0, cy0, a0, a1] of corners) {
+      for (let i = 0; i < segments; i++) {
+        const a = a0 + (a1 - a0) * i / segments;
+        pts.push([cx0 + cr * Math.cos(a), cy0 + cr * Math.sin(a)]);
+      }
+    }
+  }
+  let out = pts;
+  if (angle) out = rotatePts(out, angle);
+  return out.map(p => [p[0] + cx, p[1] + cy]);
+}
+
+// ---------- Bahtinov bar pattern (faithful port of `bp`) ----------
+
+// n = aperture-or-diameter (varies by caller), r = radius (mask or aperture),
+// partitionMult, o (boolean: true → f=0, false → f=l), cornerR = corner fillet radius
+function bahtinovBars(pitch, slitRatio, n, r, partitionMult, o, cornerR = 0) {
+  const hp = pitch / 2;
+  const sw = slitRatio * pitch;
+  const l = sw * partitionMult * 0.5;
+  const f = o ? 0 : l;
+  const u = r * 0.5;
+  const bars = [];
+
+  const m = n / pitch;
+  const mk = (cx, cy, angle) => (cornerR > 0 ? roundedRectPoly(cx, cy, sw, n, cornerR, angle) : rectPoly(cx, cy, sw, n, angle));
+
+  // middle vertical bars
+  for (let k = 0; k < m / 2; k++) {
+    const x = k * pitch + hp;
+    bars.push(mk(x, r + l - f, 0));
+    bars.push(mk(-x, r + l - f, 0));
+  }
+
+  // side bars (±20°), clipped to squares
+  const g = r; // square size = r
+  const rightSquare = rectPoly(u + l, -u - l - f, g, g);
+  const leftSquare = rectPoly(-u - l, -u - l - f, g, g);
+
+  for (let k = 0; k < m / 2; k++) {
+    const x = k * pitch + hp;
+    // +20° bars (rotate around origin)
+    const rp = rotatePts(mk(x, -r, 0), rad(20));
+    const rn = rotatePts(mk(-x, -r, 0), rad(20));
+    const cp = clipConvex(rp, rightSquare);
+    const cn = clipConvex(rn, rightSquare);
+    if (cp.length >= 3) bars.push(cp);
+    if (cn.length >= 3) bars.push(cn);
+    // -20° bars
+    const mp = rotatePts(mk(x, -r, 0), rad(-20));
+    const mn = rotatePts(mk(-x, -r, 0), rad(-20));
+    const cl = clipConvex(mp, leftSquare);
+    const cr2 = clipConvex(mn, leftSquare);
+    if (cl.length >= 3) bars.push(cl);
+    if (cr2.length >= 3) bars.push(cr2);
+  }
+
+  return bars;
+}
+
+// ---------- Tri-Bahtinov V2 (faithful port of `Ik`) ----------
+
+function triBahtinovBars(pitch, slitRatio, aperture, segments, centralObsDia) {
+  const Ra = aperture / 2;
+  const a = (aperture + centralObsDia) * 0.25;
+  const sw = slitRatio * pitch;
+
+  // bahtinov bars (r = aperture radius, partitionMult 1, o = false)
+  const c = bahtinovBars(pitch, slitRatio, aperture, Ra, 1, false);
+
+  const lbar = rectPoly(0, -Ra / 2, sw, Ra);
+  const f = unionMany([
+    circlePoly(0, 0, a + sw, segments),
+    rotatePts(lbar, rad(60)),
+    rotatePts(lbar, rad(-60)),
+  ]);
+  // u = sector(Ra, 210°..330°) - f
+  const sectorBottom = circlePoly(0, 0, Ra, segments, rad(210), rad(330));
+  const u = [];
+  for (const fp of f) {
+    const d = boolOp(sectorBottom, fp, 'diff');
+    u.push(...d);
+  }
+  if (f.length === 0) u.push(sectorBottom);
+
+  const hbar = rectPoly(0, -Ra / 2, sw / 2, Ra);
+  const topBars = unionMany([rotatePts(hbar, rad(120)), rotatePts(hbar, rad(-120))]);
+  const sectorTop = circlePoly(0, 0, a, segments, rad(29.99), rad(150));
+  const m = [];
+  for (const tp of topBars) {
+    const d = boolOp(sectorTop, tp, 'diff');
+    m.push(...d);
+  }
+  if (topBars.length === 0) m.push(sectorTop);
+
+  const v = unionMany([...u, ...m]);
+
+  // p = v ∩ c (clip v to bahtinov bars)
+  let p = [];
+  for (const vp of v) {
+    for (const cb of c) {
+      const it = boolOp(vp, cb, 'and');
+      p.push(...it);
+    }
+  }
+
+  // result = p ∪ rot120(p) ∪ rot-120(p)
+  const p120 = p.map(poly => rotatePts(poly, rad(120)));
+  const pn120 = p.map(poly => rotatePts(poly, rad(-120)));
+  return unionMany([...p, ...p120, ...pn120]);
+}
+
+// ---------- apply rounding (corner fillet) to slit polygons ----------
+
+function roundSlitCorners(bars, rounding, sw) {
+  // We round corners at the mask level by replacing sharp corners with a small
+  // fillet. Simpler approach used here: chamfer the slit rectangle corners is
+  // applied during generation (roundedRectPoly). This function is a no-op hook.
+  return bars;
+}
+
+// ---------- central obstruction handling ----------
+
+function applyCentralObstruction(bars, params, sw) {
+  const i = params.centralObsDia / 2;
+  const clearance = circlePoly(0, 0, i + sw / 2, 180);
+  const out = [];
+  for (const bar of bars) {
+    const d = boolOp(bar, clearance, 'diff');
+    out.push(...d);
+  }
+  // the central obstruction itself becomes an open hole in the mask
+  out.push(circlePoly(0, 0, i, 180));
+  return out;
+}
+
+// ---------- build the full mask (outer ring + slit holes) ----------
+
+function buildMask(inp) {
+  const p = computeParams(inp);
+  const sw = Math.max(0.05, p.pitch * p.slitRatio);
+  const Rm = p.maskRadius;
+  const cornerR = (p.rounding || 0) * sw / 2;
+
+  const outer = circlePoly(0, 0, Rm, 360);
+
+  // Guard against degenerate inputs (no slits when pitch/aperture is too small).
+  if (p.pitch <= 0.1 || p.apertureRadius <= 0 || Rm <= 0) {
+    return { params: p, outer, holes: [], sw, apertureCircle: circlePoly(0, 0, Math.max(1, p.apertureRadius), 180) };
+  }
+
+  let bars;
+  if (p.maskType === 'Tri-Bahtinov V2') {
+    const obs = p.centralObs ? p.centralObsDia : 0;
+    bars = triBahtinovBars(p.pitch, p.slitRatio, p.aperture, 180, obs);
+  } else {
+    bars = bahtinovBars(p.pitch, p.slitRatio, p.maskDiameter, Rm, p.partitionMultiplier, true, cornerR);
+  }
+
+  // clip all bars to the aperture circle
+  const apertureCircle = circlePoly(0, 0, p.apertureRadius, 180);
+  let slits = [];
+  for (const bar of bars) {
+    const clipped = clipConvex(bar, apertureCircle);
+    if (clipped.length >= 3) slits.push(clipped);
+  }
+
+  // central obstruction: trim slits to annulus and add central hole
+  let holes = slits;
+  if (p.centralObs && p.maskType === 'Bahtinov') {
+    holes = applyCentralObstruction(slits, p, sw);
+  }
+
+  return { params: p, outer, holes, sw, apertureCircle };
+}
+
+// ---------- exports ----------
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { computeParams, buildMask, bahtinovBars, triBahtinovBars, roundedRectPoly };
+}
+
+// stl.js — binary STL export for the mask (extrusion of the 2D cross-section).
+// Produces a single manifold (watertight) solid, including an optional stepped
+// flange collar. Uses the vendored mapbox earcut for triangulation.
+
+'use strict';
+
+
+function getEarcut() {
+  if (typeof require === 'function') {
+    const m = require('./_original/earcut.js');
+    return m.default || m.earcut || m;
+  }
+  return (typeof earcut !== 'undefined') ? (earcut.default || earcut) : null;
+}
+
+// Triangulate a polygon-with-holes (polygons[0]=outer, rest=holes).
+// Returns { verts: [[x,y],...], tris: [[i,j,k],...] }.
+function triangulate(polygons) {
+  const earcut = getEarcut();
+  const data = [];
+  const holeIndices = [];
+  for (let i = 0; i < polygons.length; i++) {
+    if (i > 0) holeIndices.push(data.length / 2);
+    for (const p of polygons[i]) data.push(p[0], p[1]);
+  }
+  const idx = earcut(data, holeIndices, 2);
+  const verts = [];
+  for (let i = 0; i < data.length; i += 2) verts.push([data[i], data[i + 1]]);
+  const tris = [];
+  for (let i = 0; i < idx.length; i += 3) tris.push([idx[i], idx[i + 1], idx[i + 2]]);
+  return { verts, tris };
+}
+
+// Flat face at height z (triangulated). flip=false → +z normal, flip=true → −z normal.
+function addFlatFace(tris, polygons, z, flip) {
+  const { verts, tris: ft } = triangulate(polygons);
+  for (const [a, b, c] of ft) {
+    const A = [verts[a][0], verts[a][1], z];
+    const B = [verts[b][0], verts[b][1], z];
+    const C = [verts[c][0], verts[c][1], z];
+    tris.push(flip ? [A, C, B] : [A, B, C]);
+  }
+}
+
+// Vertical side wall for a ring spanning z ∈ [z0, z1].
+// The ring must already be wound so the wall normal points away from the solid:
+// CCW for outer walls, CW for inner/hole walls.
+function addWall(tris, ring, z0, z1) {
+  const n = ring.length;
+  for (let i = 0; i < n; i++) {
+    const a = ring[i], b = ring[(i + 1) % n];
+    const A0 = [a[0], a[1], z0], B0 = [b[0], b[1], z0];
+    const A1 = [a[0], a[1], z1], B1 = [b[0], b[1], z1];
+    tris.push([A0, B0, B1]);
+    tris.push([A0, B1, A1]);
+  }
+}
+
+// Build a complete mask STL (binary ArrayBuffer).
+// mask = { params:{maskRadius}, outer, holes }; flange = { enabled, width, height } or null.
+function buildSTL(mask, heightMM, flange) {
+  const tris = buildTriangles(mask, heightMM, flange);
+
+  // ----- serialize as binary STL -----
+  const n = tris.length;
+  const buf = new ArrayBuffer(84 + n * 50);
+  const dv = new DataView(buf);
+  dv.setUint32(80, n, true);
+  let off = 84;
+  const writeFloat = v => { dv.setFloat32(off, v, true); off += 4; };
+
+  for (const tri of tris) {
+    const [a, b, c] = tri;
+    const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+    const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+    let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    const len = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
+    nx /= len; ny /= len; nz /= len;
+    writeFloat(nx); writeFloat(ny); writeFloat(nz);
+    writeFloat(a[0]); writeFloat(a[1]); writeFloat(a[2]);
+    writeFloat(b[0]); writeFloat(b[1]); writeFloat(b[2]);
+    writeFloat(c[0]); writeFloat(c[1]); writeFloat(c[2]);
+    dv.setUint16(off, 0, true); off += 2;
+  }
+  return buf;
+}
+
+// Returns the mesh as an array of triangles, each [ [x,y,z], [x,y,z], [x,y,z] ].
+// This is the same geometry serialized by buildSTL — reusable for WebGL rendering.
+function buildTriangles(mask, heightMM, flange) {
+  const H = Math.max(0.1, heightMM);
+  const Rm = mask.params.maskRadius;
+  const outer = mask.outer;   // CCW disk of radius Rm
+  const holes = mask.holes;   // slit polygons (all within r ≤ apertureRadius < Rm)
+
+  const hasFlange = !!(flange && flange.enabled && flange.width > 0 && flange.height > 0);
+  const w = hasFlange ? flange.width : 0;
+  const h = hasFlange ? flange.height : 0;
+  const Rf = Rm + w;
+  const seg = outer.length;                 // match the body's outer ring resolution
+  const outerRf = circlePoly(0, 0, Rf, seg);
+
+  const tris = [];
+
+  // bottom face (z = 0), covering the flange footprint when present
+  const bottomOuter = hasFlange ? outerRf : outer;
+  addFlatFace(tris, [bottomOuter, ...holes], 0, true);
+
+  if (hasFlange) {
+    // flange top ring (annulus Rm..Rf) at z = h
+    addFlatFace(tris, [outerRf, outer], h, false);
+    // body top (disk Rm minus slits) at z = H
+    addFlatFace(tris, [outer, ...holes], H, false);
+    // flange outer wall r = Rf, z ∈ [0, h]
+    addWall(tris, ensureCCW(outerRf), 0, h);
+    // wall at r = Rm between the two top levels
+    if (H >= h) {
+      // body taller than flange → outer step wall, z ∈ [h, H]
+      addWall(tris, ensureCCW(outer), h, H);
+    } else {
+      // flange taller than body → recessed well wall, z ∈ [H, h] (faces inward)
+      addWall(tris, ensureCW(outer), H, h);
+    }
+  } else {
+    // plain prism: top face + outer wall
+    addFlatFace(tris, [outer, ...holes], H, false);
+    addWall(tris, ensureCCW(outer), 0, H);
+  }
+
+  // slit / central-hole walls (z ∈ [0, H])
+  for (const hole of holes) {
+    addWall(tris, ensureCW(hole), 0, H);
+  }
+
+  return tris;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { buildSTL, buildTriangles, triangulate };
+}
+
+// viewer.js — minimal, dependency-free WebGL mesh viewer with orbit controls.
+// Renders a list of triangles (flat-shaded) so the user can inspect the 3D mask.
+
+function createMeshViewer(canvas) {
+  const gl = canvas.getContext('webgl', { antialias: true, alpha: false, preserveDrawingBuffer: true });
+  if (!gl) return null;
+
+  // ---------- shaders ----------
+  const VS = [
+    'attribute vec3 aPos;',
+    'attribute vec3 aNormal;',
+    'uniform mat4 uMVP;',
+    'uniform mat4 uModel;',
+    'varying vec3 vNormal;',
+    'void main() {',
+    '  vNormal = mat3(uModel) * aNormal;',
+    '  gl_Position = uMVP * vec4(aPos, 1.0);',
+    '}',
+  ].join('\n');
+
+  const FS = [
+    'precision mediump float;',
+    'varying vec3 vNormal;',
+    'uniform vec3 uColor;',
+    'void main() {',
+    '  vec3 n = normalize(vNormal);',
+    '  vec3 l1 = normalize(vec3(0.5, 0.65, 0.55));',
+    '  vec3 l2 = normalize(vec3(-0.5, -0.3, -0.75));',
+    '  float d1 = max(dot(n, l1), 0.0);',
+    '  float d2 = max(dot(n, l2), 0.0);',
+    '  float l = 0.30 + 0.55 * d1 + 0.25 * d2;',
+    '  gl_FragColor = vec4(uColor * l, 1.0);',
+    '}',
+  ].join('\n');
+
+  function compile(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      console.error('shader compile:', gl.getShaderInfoLog(s));
+      return null;
+    }
+    return s;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    console.error('shader link:', gl.getProgramInfoLog(prog));
+    return null;
+  }
+  gl.useProgram(prog);
+
+  const loc = {
+    pos: gl.getAttribLocation(prog, 'aPos'),
+    normal: gl.getAttribLocation(prog, 'aNormal'),
+    mvp: gl.getUniformLocation(prog, 'uMVP'),
+    model: gl.getUniformLocation(prog, 'uModel'),
+    color: gl.getUniformLocation(prog, 'uColor'),
+  };
+
+  // ---------- buffers ----------
+  const posBuf = gl.createBuffer();
+  const normBuf = gl.createBuffer();
+  let vertexCount = 0;
+
+  // ---------- mat4 helpers (column-major, like WebGL) ----------
+  function identity(o) { for (let i = 0; i < 16; i++) o[i] = (i % 5 === 0) ? 1 : 0; }
+  function multiply(o, a, b) {
+    const r = new Float32Array(16);
+    for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+      let s = 0;
+      for (let k = 0; k < 4; k++) s += a[i + 4 * k] * b[k + 4 * j];
+      r[i + 4 * j] = s;
+    }
+    o.set(r);
+  }
+  function perspective(o, fovy, aspect, near, far) {
+    const f = 1.0 / Math.tan(fovy / 2);
+    const nf = 1 / (near - far);
+    o.fill(0);
+    o[0] = f / aspect; o[5] = f;
+    o[10] = (far + near) * nf; o[11] = -1;
+    o[14] = 2 * far * near * nf;
+  }
+  function translateScale(o, cx, cy, cz, s) {
+    // o = translate(-c) * scale(s)  =>  o * p = s*(p - c)
+    o.fill(0);
+    o[0] = s; o[5] = s; o[10] = s; o[15] = 1;
+    o[12] = -s * cx; o[13] = -s * cy; o[14] = -s * cz;
+  }
+  function rotationX(o, a) {
+    const c = Math.cos(a), s = Math.sin(a);
+    identity(o);
+    o[5] = c; o[6] = s; o[9] = -s; o[10] = c;
+  }
+  function rotationY(o, a) {
+    const c = Math.cos(a), s = Math.sin(a);
+    identity(o);
+    o[0] = c; o[2] = -s; o[8] = s; o[10] = c;
+  }
+
+  // ---------- orbit state ----------
+  let yaw = 0.6, pitch = -0.35, dist = 2.6;
+  let dragging = false;
+  let lastX = 0, lastY = 0;
+  const pointers = new Map(); // for pinch
+
+  // ---------- mesh ----------
+  function setMesh(tris, center, scale) {
+    const pos = [], norm = [];
+    for (const [a, b, c] of tris) {
+      const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+      const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+      let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      const len = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
+      nx /= len; ny /= len; nz /= len;
+      for (const p of [a, b, c]) {
+        pos.push(p[0], p[1], p[2]);
+        norm.push(nx, ny, nz);
+      }
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pos), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, normBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(norm), gl.STATIC_DRAW);
+    vertexCount = pos.length / 3;
+
+    // store for model matrix
+    meshCenter = center;
+    meshScale = scale;
+  }
+  let meshCenter = [0, 0, 0], meshScale = 1;
+
+  // ---------- render ----------
+  function render() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (w === 0 || h === 0) return;
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+    }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+
+    gl.enable(gl.DEPTH_TEST);
+    gl.clearColor(0.07, 0.10, 0.14, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    if (vertexCount === 0) return;
+
+    const aspect = w / h;
+    const P = new Float32Array(16);
+    perspective(P, 45 * Math.PI / 180, aspect, 0.01, 100);
+
+    const RX = new Float32Array(16), RY = new Float32Array(16), V = new Float32Array(16), T = new Float32Array(16);
+    rotationX(RX, pitch);
+    rotationY(RY, yaw);
+    multiply(V, RX, RY);
+    // translate camera back by dist along -z (in view space)
+    V[14] -= dist;
+
+    const M = new Float32Array(16);
+    translateScale(M, meshCenter[0], meshCenter[1], meshCenter[2], meshScale);
+
+    const VM = new Float32Array(16), MVP = new Float32Array(16);
+    multiply(VM, V, M);
+    multiply(MVP, P, VM);
+
+    gl.uniformMatrix4fv(loc.mvp, false, MVP);
+    gl.uniformMatrix4fv(loc.model, false, M);
+    gl.uniform3f(loc.color, 0.62, 0.78, 0.90);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+    gl.enableVertexAttribArray(loc.pos);
+    gl.vertexAttribPointer(loc.pos, 3, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, normBuf);
+    gl.enableVertexAttribArray(loc.normal);
+    gl.vertexAttribPointer(loc.normal, 3, gl.FLOAT, false, 0, 0);
+
+    gl.drawArrays(gl.TRIANGLES, 0, vertexCount);
+  }
+
+  // ---------- interaction ----------
+  function onDown(e) {
+    dragging = true;
+    lastX = e.clientX; lastY = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+  function onMove(e) {
+    if (!dragging) return;
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    yaw += dx * 0.008;
+    pitch -= dy * 0.008;
+    pitch = Math.max(-1.5, Math.min(1.5, pitch));
+    render();
+  }
+  function onUp(e) { dragging = false; }
+  function onWheel(e) {
+    e.preventDefault();
+    dist *= Math.exp(e.deltaY * 0.001);
+    dist = Math.max(1.2, Math.min(12, dist));
+    render();
+  }
+  canvas.addEventListener('pointerdown', onDown);
+  canvas.addEventListener('pointermove', onMove);
+  canvas.addEventListener('pointerup', onUp);
+  canvas.addEventListener('pointercancel', onUp);
+  canvas.addEventListener('wheel', onWheel, { passive: false });
+  canvas.style.cursor = 'grab';
+  canvas.style.touchAction = 'none';
+
+  function dispose() {
+    canvas.removeEventListener('pointerdown', onDown);
+    canvas.removeEventListener('pointermove', onMove);
+    canvas.removeEventListener('pointerup', onUp);
+    canvas.removeEventListener('pointercancel', onUp);
+    canvas.removeEventListener('wheel', onWheel);
+  }
+
+  return { setMesh, render, dispose };
+}
+
+// app.js — SVG serialization + UI wiring for the mask generator (browser).
+
+// ---------- SVG serialization ----------
+
+function polygonToPathD(pts, cx, cy) {
+  // pts in mask space (Y-up, mm); convert to SVG (Y-down, origin at top-left of
+  // a square of side `diameter` centered on the mask).
+  let d = '';
+  for (let i = 0; i < pts.length; i++) {
+    const x = (cx + pts[i][0]).toFixed(3);
+    const y = (cy - pts[i][1]).toFixed(3);
+    d += (i === 0 ? 'M' : 'L') + x + ' ' + y;
+  }
+  return d + 'Z';
+}
+
+function shapeToPathD(mask) {
+  const diameter = mask.params.maskDiameter;
+  const cx = diameter / 2, cy = diameter / 2;
+  let paths = '';
+  paths += polygonToPathD(mask.outer, cx, cy);
+  for (const h of mask.holes) paths += ' ' + polygonToPathD(h, cx, cy);
+  return paths;
+}
+
+function shapeToSVG(mask) {
+  const diameter = mask.params.maskDiameter;
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="${diameter.toFixed(4)}mm" height="${diameter.toFixed(4)}mm" viewBox="0 0 ${diameter} ${diameter}"
+     fill="black" fill-rule="evenodd" stroke="none"
+     version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <path d="${shapeToPathD(mask)}"/>
+</svg>`;
+}
+
+// ---------- helpers ----------
+
+function $(sel) { return document.querySelector(sel); }
+function fmt(v, d = 2) { return (Math.round(v * 100) / 100).toFixed(d); }
+
+// ---------- 3D viewer ----------
+
+let viewer = null;
+
+function currentFlange() {
+  return {
+    enabled: state.hasFlange,
+    width: +state.flangeWidthMM,
+    height: +state.flangeHeightMM,
+  };
+}
+
+function meshBounds(tris) {
+  const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+  for (const t of tris) for (const p of t) for (let i = 0; i < 3; i++) {
+    if (p[i] < mn[i]) mn[i] = p[i];
+    if (p[i] > mx[i]) mx[i] = p[i];
+  }
+  const center = [0, 1, 2].map(i => (mn[i] + mx[i]) / 2);
+  const ext = Math.max(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]) || 1;
+  return { center, scale: 2.0 / ext };
+}
+
+function render3D() {
+  if (!viewer || !lastMask) return;
+  const tris = buildTriangles(lastMask, +state.heightMM, currentFlange());
+  if (!tris.length) { viewer.setMesh([], [0, 0, 0], 1); viewer.render(); return; }
+  const { center, scale } = meshBounds(tris);
+  viewer.setMesh(tris, center, scale);
+  viewer.render();
+}
+
+// ---------- state ----------
+
+const state = {
+  apertureType: 0,          // 0 = fully open, 1 = stopped
+  apertureStopRatio: 1,
+  maskType: 'Bahtinov',
+  outputType: '2D',         // '2D' | '3D'
+  diameterMM: 100,
+  rimWidthMM: 10,
+  useAutoAperture: true,
+  specifiedAperture: null,
+  focalLengthMM: 1200,
+  slitPitchMode: 'recommended',
+  slitPitchCustom: null,
+  slitRatio: 0.5,
+  partitionMultiplier: 1,
+  centralObs: false,
+  centralObsDiaMM: 30,
+  rounding: 0.3,
+  // 3D
+  heightMM: 5,
+  hasFlange: true,
+  flangeHeightMM: 2,
+  flangeWidthMM: 4,
+};
+
+function currentConfig() {
+  return {
+    diameterMM: +state.diameterMM,
+    rimWidthMM: +state.rimWidthMM,
+    useAutoAperture: state.useAutoAperture,
+    specifiedAperture: state.specifiedAperture,
+    apertureType: state.apertureType,
+    apertureStopRatio: +state.apertureStopRatio,
+    focalLengthMM: +state.focalLengthMM,
+    slitPitchMode: state.slitPitchMode,
+    slitPitchCustom: state.slitPitchCustom,
+    slitRatio: +state.slitRatio,
+    partitionMultiplier: +state.partitionMultiplier,
+    centralObs: state.centralObs,
+    centralObsDiaMM: +state.centralObsDiaMM,
+    rounding: +state.rounding,
+    maskType: state.maskType,
+  };
+}
+
+// ---------- render ----------
+
+let lastMask = null;
+
+function render() {
+  const cfg = currentConfig();
+  const params = computeParams(cfg);
+  const mask = buildMask(cfg);
+  lastMask = mask;
+
+  // update derived value labels
+  $('#valAutoAperture').textContent = fmt(params.aperture, 2);
+  $('#valRecommendedPitch').textContent = fmt(params.recommendedPitch, 2);
+  $('#val3xPitch').textContent = fmt(3 * params.recommendedPitch, 2);
+  $('#valStoppedAperture').textContent = fmt(params.stoppedAperture, 2);
+
+  // preview — build the path directly into the SVG element (no nested <svg>)
+  const svgEl = $('#previewSvg');
+  let pathEl = svgEl.querySelector('path');
+  if (!pathEl) {
+    pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    svgEl.appendChild(pathEl);
+  }
+  pathEl.setAttribute('d', shapeToPathD(mask));
+  pathEl.setAttribute('fill', 'black');
+  pathEl.setAttribute('fill-rule', 'evenodd');
+  svgEl.setAttribute('viewBox', `0 0 ${params.maskDiameter} ${params.maskDiameter}`);
+
+  // stats
+  $('#statHoles').textContent = mask.holes.length;
+  $('#statPitch').textContent = fmt(params.pitch, 2) + ' mm';
+  $('#statAperture').textContent = fmt(params.aperture, 2) + ' mm';
+
+  // 3D viewport (only when in 3D output mode)
+  if (state.outputType === '3D') render3D();
+}
+
+// ---------- downloads ----------
+
+function downloadSVG() {
+  const svg = shapeToSVG(lastMask);
+  const blob = new Blob([svg], { type: 'image/svg+xml' });
+  triggerDownload(blob, 'bahtinov-mask.svg');
+}
+
+function downloadSTL() {
+  const height = +state.heightMM;
+  const flange = {
+    enabled: state.hasFlange,
+    width: +state.flangeWidthMM,
+    height: +state.flangeHeightMM,
+    maskRadius: lastMask.params.maskRadius,
+  };
+  const buf = buildSTL(lastMask, height, flange);
+  const blob = new Blob([buf], { type: 'model/stl' });
+  triggerDownload(blob, 'bahtinov-mask.stl');
+}
+
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+// ---------- UI wiring ----------
+
+function wire() {
+  // number inputs
+  const bindNum = (sel, key) => {
+    const el = $(sel);
+    el.addEventListener('input', () => { state[key] = el.value; render(); });
+  };
+  bindNum('#inM', 'diameterMM');
+  bindNum('#inR', 'rimWidthMM');
+  bindNum('#inF', 'focalLengthMM');
+  bindNum('#inSlitRatio', 'slitRatio');
+  bindNum('#inCentralObsDia', 'centralObsDiaMM');
+  bindNum('#inHeight', 'heightMM');
+  bindNum('#inFlangeHeight', 'flangeHeightMM');
+  bindNum('#inFlangeWidth', 'flangeWidthMM');
+  bindNum('#inApertureStop', 'apertureStopRatio');
+
+  // aperture radio
+  document.querySelectorAll('input[name="apertureMode"]').forEach(r => {
+    r.addEventListener('change', () => {
+      state.useAutoAperture = (r.value === 'auto');
+      $('#customAperture').classList.toggle('hidden', state.useAutoAperture);
+      render();
+    });
+  });
+  $('#inCustomAperture').addEventListener('input', e => { state.specifiedAperture = e.target.value; render(); });
+
+  // slit pitch radio
+  document.querySelectorAll('input[name="pitchMode"]').forEach(r => {
+    r.addEventListener('change', () => {
+      state.slitPitchMode = r.value;
+      $('#customPitch').classList.toggle('hidden', r.value !== 'custom');
+      render();
+    });
+  });
+  $('#inCustomPitch').addEventListener('input', e => { state.slitPitchCustom = +e.target.value; render(); });
+
+  // select-like dropdowns (aperture type, mask type, output type)
+  $('#apertureType').addEventListener('change', e => {
+    state.apertureType = +e.target.value;
+    $('#apertureStopRow').classList.toggle('hidden', state.apertureType === 0);
+    render();
+  });
+  $('#maskType').addEventListener('change', e => { state.maskType = e.target.value; render(); });
+  $('#outputType').addEventListener('change', e => {
+    state.outputType = e.target.value;
+    applyOutputMode();
+    render();
+  });
+
+  // central obstruction
+  $('#inCentralObs').addEventListener('change', e => {
+    state.centralObs = e.target.checked;
+    $('#centralObsRow').classList.toggle('hidden', !e.target.checked);
+    render();
+  });
+
+  // rounding slider
+  const roundSlider = $('#inRounding');
+  roundSlider.addEventListener('input', () => {
+    state.rounding = +roundSlider.value;
+    $('#valRounding').textContent = Math.round(state.rounding * 100) + '%';
+    render();
+  });
+
+  // flange
+  $('#inFlange').addEventListener('change', e => {
+    state.hasFlange = e.target.checked;
+    $('#flangeRows').classList.toggle('hidden', !e.target.checked);
+    render();
+  });
+
+  // partition multiplier
+  $('#inPartition').addEventListener('input', e => { state.partitionMultiplier = +e.target.value; render(); });
+
+  // download
+  $('#btnDownload').addEventListener('click', () => {
+    if (state.outputType === '2D') downloadSVG();
+    else downloadSTL();
+  });
+
+  window.addEventListener('resize', render);
+}
+
+// ---------- output mode + DOM sync ----------
+
+function applyOutputMode() {
+  const is3D = state.outputType === '3D';
+  $('#settings3D').classList.toggle('hidden', !is3D);
+  $('#btnDownload').textContent = is3D ? 'Download STL' : 'Download SVG';
+  $('#previewSvg').classList.toggle('hidden', is3D);
+  $('#viewer3D').classList.toggle('hidden', !is3D);
+  if (is3D) {
+    if (!viewer) {
+      viewer = createMeshViewer($('#viewerCanvas'));
+      if (!viewer) $('#errMsg').textContent = 'WebGL not available — 3D preview disabled.';
+    }
+    // defer so the canvas has a non-zero size after it is unhidden
+    requestAnimationFrame(() => render3D());
+  }
+}
+
+// Re-read the actual DOM values into state and re-sync visibility. This fixes the
+// case where the browser restores form state on reload (the <select> shows "3D"
+// but the JS still thinks it is in 2D mode).
+function syncFromDOM() {
+  state.outputType = $('#outputType').value;
+  state.maskType = $('#maskType').value;
+  state.apertureType = +$('#apertureType').value;
+  state.apertureStopRatio = $('#inApertureStop').value;
+  state.diameterMM = $('#inM').value;
+  state.rimWidthMM = $('#inR').value;
+  state.focalLengthMM = $('#inF').value;
+  state.slitRatio = $('#inSlitRatio').value;
+  state.partitionMultiplier = $('#inPartition').value;
+  state.centralObsDiaMM = $('#inCentralObsDia').value;
+  state.heightMM = $('#inHeight').value;
+  state.flangeHeightMM = $('#inFlangeHeight').value;
+  state.flangeWidthMM = $('#inFlangeWidth').value;
+  state.rounding = +$('#inRounding').value;
+  state.centralObs = $('#inCentralObs').checked;
+  state.hasFlange = $('#inFlange').checked;
+  state.specifiedAperture = $('#inCustomAperture').value;
+  state.slitPitchCustom = +$('#inCustomPitch').value;
+
+  const apMode = document.querySelector('input[name="apertureMode"]:checked');
+  state.useAutoAperture = !apMode || apMode.value === 'auto';
+  const pMode = document.querySelector('input[name="pitchMode"]:checked');
+  state.slitPitchMode = pMode ? pMode.value : 'recommended';
+
+  // visibility sync
+  applyOutputMode();
+  $('#apertureStopRow').classList.toggle('hidden', state.apertureType === 0);
+  $('#customAperture').classList.toggle('hidden', state.useAutoAperture);
+  $('#customPitch').classList.toggle('hidden', state.slitPitchMode !== 'custom');
+  $('#centralObsRow').classList.toggle('hidden', !state.centralObs);
+  $('#flangeRows').classList.toggle('hidden', !state.hasFlange);
+  $('#valRounding').textContent = Math.round(state.rounding * 100) + '%';
+}
+
+wire();
+syncFromDOM();
+render();
+// Re-sync when the page is restored from the back/forward cache (form state persists
+// there too, and can arrive after the initial script run).
+window.addEventListener('pageshow', () => { syncFromDOM(); render(); });
+
+
+</script>
+</body>
+</html>
