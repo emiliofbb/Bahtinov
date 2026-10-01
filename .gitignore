@@ -5,8 +5,5 @@ Thumbs.db
 # Node
 node_modules/
 
-# Scratch / analysis artifacts (the vendored _original/earcut.js IS committed)
-_original/*.stl
-_original/index.js
-_original/index.css
-_original/*.svg
+# Scratch / analysis artifacts
+_original/
