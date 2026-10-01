@@ -267,6 +267,15 @@ function wire() {
     else downloadSTL();
   });
 
+  // help modal
+  const helpModal = $('#helpModal');
+  const openHelp = () => helpModal.classList.remove('hidden');
+  const closeHelp = () => helpModal.classList.add('hidden');
+  $('#btnHelp').addEventListener('click', openHelp);
+  $('#btnHelpClose').addEventListener('click', closeHelp);
+  helpModal.addEventListener('click', e => { if (e.target === helpModal) closeHelp(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !helpModal.classList.contains('hidden')) closeHelp(); });
+
   window.addEventListener('resize', render);
 }
 

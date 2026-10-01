@@ -35,8 +35,15 @@
 
   .wrap { max-width: 1160px; margin: 0 auto; padding: 20px 20px 60px; }
   header { margin-bottom: 20px; }
+  .header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
   header h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
   header p { margin: 0; color: var(--muted); font-size: 14px; }
+  .help-btn {
+    flex: none; padding: 8px 14px; background: var(--panel2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; font-size: 14px; cursor: pointer;
+    white-space: nowrap;
+  }
+  .help-btn:hover { border-color: var(--accent); color: var(--accent); }
 
   .layout { display: grid; grid-template-columns: 380px 1fr; gap: 20px; align-items: start; }
   @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
@@ -126,13 +133,49 @@
 
   footer { margin-top: 24px; color: var(--muted); font-size: 12px; text-align: center; }
   .err { color: var(--danger); font-size: 13px; min-height: 18px; margin-top: 8px; }
+
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+    z-index: 100; overflow-y: auto;
+  }
+  .modal {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    max-width: 640px; width: 100%; max-height: 85vh; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  }
+  .modal-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel); z-index: 1;
+  }
+  .modal-head h2 { margin: 0; font-size: 18px; font-weight: 600; }
+  .modal-close {
+    background: none; border: none; color: var(--muted); font-size: 26px; line-height: 1;
+    cursor: pointer; padding: 0 4px;
+  }
+  .modal-close:hover { color: var(--text); }
+  .modal-body { padding: 16px 20px 22px; }
+  .modal-body h3 { margin: 18px 0 8px; font-size: 15px; font-weight: 600; color: var(--accent2); }
+  .modal-body h3:first-child { margin-top: 0; }
+  .modal-body p, .modal-body li { font-size: 14px; color: var(--text); }
+  .modal-body ol, .modal-body ul { margin: 8px 0; padding-left: 22px; }
+  .modal-body li { margin-bottom: 6px; }
+  .help-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .help-table th, .help-table td { padding: 7px 10px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+  .help-table th { font-family: var(--mono); color: var(--accent); white-space: nowrap; width: 60px; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>Bahtinov Mask Generator</h1>
-    <p>Bahtinov &amp; Tri-Bahtinov focusing masks — 2D (SVG) or 3D (STL), computed entirely in your browser.</p>
+    <div class="header-row">
+      <div>
+        <h1>Bahtinov Mask Generator</h1>
+        <p>Bahtinov &amp; Tri-Bahtinov focusing masks — 2D (SVG) or 3D (STL), computed entirely in your browser.</p>
+      </div>
+      <button class="help-btn" id="btnHelp" type="button" title="Beginner guide">?&nbsp; Help</button>
+    </div>
   </header>
 
   <div class="layout">
@@ -291,6 +334,57 @@
   <footer>
     Runs fully client-side — no server, no upload. SVG scales for cutting; STL is manifold for 3D printing.
   </footer>
+</div>
+
+<div class="modal-backdrop hidden" id="helpModal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+  <div class="modal" role="document">
+    <div class="modal-head">
+      <h2 id="helpTitle">How to use this tool</h2>
+      <button class="modal-close" id="btnHelpClose" type="button" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+
+      <h3>What is a Bahtinov mask?</h3>
+      <p>
+        A Bahtinov mask is a cheap focusing aid for telescopes and camera lenses.
+        It's a disk with a pattern of angled slits. Put it over the front of your
+        scope, point at a bright star, and it turns the star into a <strong>spike
+        pattern</strong>. You are in perfect focus when the middle spike sits
+        <em>exactly</em> halfway between the two outer spikes. Off by a hair and the
+        middle spike shifts — that's the whole trick.
+      </p>
+
+      <h3>Quick start</h3>
+      <ol>
+        <li>Leave the defaults, but set <strong>A</strong> to your telescope's aperture (it auto-fills from M − 2R).</li>
+        <li>If you know it, enter your <strong>F</strong> focal length — it tunes the slit size.</li>
+        <li>Keep the slit pitch at <strong>Recommended</strong>.</li>
+        <li><strong>Download SVG</strong> to cut from paper/vinyl, or switch to <strong>3D</strong> and <strong>Download STL</strong> to 3D-print.</li>
+        <li>Point at a bright star, focus until the central spike is centered.</li>
+      </ol>
+
+      <h3>Parameter cheat sheet</h3>
+      <table class="help-table">
+        <tr><th>M</th><td><strong>Mask diameter</strong> — total width of the disk. Make it a bit larger than your scope's tube.</td></tr>
+        <tr><th>R</th><td><strong>Rim width</strong> — the solid border that holds the slits together and rests on the tube.</td></tr>
+        <tr><th>A</th><td><strong>Aperture</strong> — the clear opening. Auto = M − 2R, which is right for most scopes.</td></tr>
+        <tr><th>F</th><td><strong>Focal length</strong> — drives the recommended slit pitch. Longer focal length → finer slits.</td></tr>
+        <tr><th>S</th><td><strong>Slit pitch</strong> — spacing of the bars. <em>Recommended</em> is best; <em>3×</em> gives brighter but coarser spikes.</td></tr>
+        <tr><th>Type</th><td><strong>Bahtinov</strong> = focus only. <strong>Tri-Bahtinov V2</strong> = focus + check collimation (mirror alignment).</td></tr>
+        <tr><th>Obstruction</th><td>Turn on <strong>Central obstruction</strong> only for reflectors with a secondary mirror; set it to the mirror's size.</td></tr>
+        <tr><th>Rounding</th><td>How rounded the slit corners are. Purely aesthetic — doesn't change the optics.</td></tr>
+      </table>
+
+      <h3>Tips</h3>
+      <ul>
+        <li>In <strong>3D</strong> mode you can <strong>drag to rotate</strong> and <strong>scroll to zoom</strong> the model.</li>
+        <li>For a reflector, enable the central obstruction so light isn't blocked by the secondary.</li>
+        <li>The slit pitch only needs to be roughly right — focusing works across a wide range.</li>
+        <li>Use a bright star (or a distant point light) and high magnification for the clearest spikes.</li>
+      </ul>
+
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1565,6 +1659,15 @@ function wire() {
     if (state.outputType === '2D') downloadSVG();
     else downloadSTL();
   });
+
+  // help modal
+  const helpModal = $('#helpModal');
+  const openHelp = () => helpModal.classList.remove('hidden');
+  const closeHelp = () => helpModal.classList.add('hidden');
+  $('#btnHelp').addEventListener('click', openHelp);
+  $('#btnHelpClose').addEventListener('click', closeHelp);
+  helpModal.addEventListener('click', e => { if (e.target === helpModal) closeHelp(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !helpModal.classList.contains('hidden')) closeHelp(); });
 
   window.addEventListener('resize', render);
 }
